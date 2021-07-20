@@ -1,0 +1,3 @@
+COOKIE="/tmp/jira_tools"
+GITHUB_TOKEN="" # Provide your own token
+JIRA_ISSUES_API="https://issues.liferay.com/rest/api/2/issue"
