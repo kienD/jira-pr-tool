@@ -81,11 +81,16 @@ function check_for_errors() {
 
 # Fetch the jira issue based on the branch name
 function fetch_jira_issue() {
+  local jira_ticket="$1"
   local branch_name
-  branch_name=$(get_branch_name)
+
+  if [[ -z "$jira_ticket" ]]; then
+    jira_ticket=$(get_branch_name)
+
+  fi
 
   local response
-  response=$(curl -s -b "$COOKIE" "${JIRA_ISSUES_API}/${branch_name}?fields=summary,issuetype")
+  response=$(curl -s -b "$COOKIE" "${JIRA_ISSUES_API}/${jira_ticket}?fields=summary,issuetype")
 
   echo "$response"
 }
@@ -114,12 +119,13 @@ function create_gh_pull_request() {
   local base_user="$1"
   local base_branch="$2"
   local head="$3"
+  local jira_ticket="$4"
 
   local repo_name
   repo_name=$(get_repo_name)
 
   local response
-  response=$(fetch_jira_issue)
+  response=$(fetch_jira_issue "$jira_ticket")
 
   local issue_number
   issue_number=$(echo "$response" | jq -r '.key')
@@ -164,10 +170,11 @@ function main() {
   local base_user
   local head
   head="$(get_github_user):$(get_branch_name)"
+  local jira_ticket
   local labels
 
   # Grab flag values and provide them to variables
-  while getopts 'h a:b:l:H:' flag; do
+  while getopts 'h a:b:l:H:t:' flag; do
     case "$flag" in
     h)
       echo "jira-pr-tool"
@@ -198,6 +205,10 @@ function main() {
       echo "        Set label to add to pull request"
       echo "        e.g. \"-l reviewRequired\""
 
+      echo "    -t <ticket number>"
+      echo "        Set jira ticket number to fetch the title from"
+      echo "        e.g. \"-t LRAC-3145\""
+
       exit 0
       ;;
     a)
@@ -223,6 +234,9 @@ function main() {
     l)
       labels=$(wrap_words_in_quotes "$OPTARG")
       ;;
+    t)
+      jira_ticket="$OPTARG"
+      ;;
     *)
       echo "Invalid flag provided: -$OPTARG"
       ;;
@@ -238,7 +252,7 @@ function main() {
   check_cookies
 
   local pr_response
-  pr_response=$(create_gh_pull_request "$base_user" "$base_branch" "$head")
+  pr_response=$(create_gh_pull_request "$base_user" "$base_branch" "$head" "$jira_ticket")
 
   local pr_error_message
   pr_error_message=$(check_for_errors "$pr_response")
